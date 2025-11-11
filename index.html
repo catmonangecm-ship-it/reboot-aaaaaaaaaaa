@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Trading Avancé - Binance & MetaMask</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-card h3 {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+
+        .status-value {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .green { background: #10b981; }
+        .yellow { background: #f59e0b; }
+        .red { background: #ef4444; }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .panel h2 {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            font-size: 1em;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #2563eb;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .indicator-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .indicator-card {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .indicator-card:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .indicator-card.active {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .indicator-card h4 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .indicator-settings {
+            margin-top: 10px;
+        }
+
+        .indicator-settings input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .price-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .price-display .price {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .price-display .change {
+            font-size: 1.2em;
+        }
+
+        .change.positive { color: #10b981; }
+        .change.negative { color: #ef4444; }
+
+        .log-panel {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-left: 3px solid #3b82f6;
+            padding-left: 10px;
+        }
+
+        .log-entry.success { border-left-color: #10b981; }
+        .log-entry.error { border-left-color: #ef4444; }
+        .log-entry.warning { border-left-color: #f59e0b; }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+
+        .trading-pair-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .trading-pair-selector button {
+            padding: 8px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .trading-pair-selector button:hover,
+        .trading-pair-selector button.active {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: #10b981;
+        }
+
+        .alert-box {
+            background: rgba(251, 191, 36, 0.2);
+            border: 2px solid #f59e0b;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .indicator-values {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .indicator-value-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .indicator-value-card .label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .indicator-value-card .value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Bot Trading Avancé</h1>
+            <p>Plateforme de Trading Automatisé avec Indicateurs Techniques</p>
+        </div>
+
+        <!-- Status Grid -->
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>Wallet</h3>
+                <div class="status-value">
+                    <span class="status-indicator" id="walletStatus"></span>
+                    <span id="walletText">Déconnecté</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Mode Trading</h3>
+                <div class="status-value">
+                    <span class="status-indicator" id="modeStatus"></span>
+                    <span id="modeText">Manuel</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Position</h3>
+                <div class="status-value">
+                    <span class="status-indicator" id="positionStatus"></span>
+                    <span id="positionText">Aucune</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Binance API</h3>
+                <div class="status-value">
+                    <span class="status-indicator" id="binanceStatus"></span>
+                    <span id="binanceText">Déconnecté</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Ethers.js</h3>
+                <div class="status-value">
+                    <span class="status-indicator green"></span>
+                    <span>v5.7.2</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Wake Lock</h3>
+                <div class="status-value">
+                    <span class="status-indicator" id="wakeLockStatus"></span>
+                    <span id="wakeLockText">Relâché</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel -->
+            <div>
+                <!-- Connection Panel -->
+                <div class="panel">
+                    <h2>🔐 Connexion</h2>
+                    
+                    <div class="form-group">
+                        <label>MetaMask (Clé Privée)</label>
+                        <input type="password" id="privateKey" placeholder="Entrez votre clé privée">
+                        <small style="opacity: 0.7; display: block; margin-top: 5px;">⚠️ Ne partagez jamais votre clé privée</small>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="connectWallet()">Connecter Wallet</button>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Binance API Key</label>
+                        <input type="text" id="binanceApiKey" placeholder="Votre API Key Binance">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Binance Secret Key</label>
+                        <input type="password" id="binanceSecretKey" placeholder="Votre Secret Key Binance">
+                    </div>
+
+                    <button class="btn btn-secondary" onclick="connectBinance()">Connecter Binance</button>
+                </div>
+
+                <!-- Trading Pair Selection -->
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>📊 Paire de Trading</h2>
+                    <div class="trading-pair-selector">
+                        <button onclick="selectPair('BTCUSDT')" class="active">BTC/USDT</button>
+                        <button onclick="selectPair('ETHUSDT')">ETH/USDT</button>
+                        <button onclick="selectPair('BNBUSDT')">BNB/USDT</button>
+                        <button onclick="selectPair('ADAUSDT')">ADA/USDT</button>
+                        <button onclick="selectPair('SOLUSDT')">SOL/USDT</button>
+                        <button onclick="selectPair('XRPUSDT')">XRP/USDT</button>
+                    </div>
+
+                    <div class="price-display">
+                        <div style="opacity: 0.8;">Prix Actuel</div>
+                        <div class="price" id="currentPrice">$0.00</div>
+                        <div class="change" id="priceChange">+0.00%</div>
+                    </div>
+                </div>
+
+                <!-- Trading Controls -->
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>⚙️ Contrôles de Trading</h2>
+                    
+                    <div class="form-group">
+                        <label>Montant d'Investissement (USDT)</label>
+                        <input type="number" id="investAmount" value="100" min="10">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mode de Trading</label>
+                        <select id="tradingMode" onchange="updateTradingMode()">
+                            <option value="manual">Manuel</option>
+                            <option value="auto">Automatique 24/7</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="startBot()" id="startBtn">▶️ Démarrer le Bot</button>
+                    <button class="btn btn-danger" onclick="stopBot()" id="stopBtn" disabled>⏹️ Arrêter le Bot</button>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div>
+                <!-- Indicators Selection -->
+                <div class="panel">
+                    <h2>📈 Sélection des Indicateurs</h2>
+                    <p style="opacity: 0.8; margin-bottom: 15px;">Cliquez sur les indicateurs que vous souhaitez utiliser et configurez leurs paramètres</p>
+                    
+                    <div class="indicator-selector" id="indicatorSelector">
+                        <!-- Indicators will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Indicator Values Display -->
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>📊 Valeurs des Indicateurs en Temps Réel</h2>
+                    <div class="indicator-values" id="indicatorValues">
+                        <!-- Real-time indicator values will be displayed here -->
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>📉 Graphique de Prix</h2>
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Panel -->
+        <div class="panel">
+            <h2>📝 Journal d'Activité</h2>
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry">Système initialisé. En attente de connexion...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Variables
+        let wallet = null;
+        let provider = null;
+        let currentPair = 'BTCUSDT';
+        let botActive = false;
+        let priceChart = null;
+        let priceData = [];
+        let indicatorData = {};
+        let binanceWs = null;
+        let wakeLock = null;
+        let selectedIndicators = {};
+
+        // Available Indicators
+        const availableIndicators = {
+            rsi: {
+                name: 'RSI',
+                fullName: 'Relative Strength Index',
+                params: { period: 14, overbought: 70, oversold: 30 }
+            },
+            macd: {
+                name: 'MACD',
+                fullName: 'Moving Average Convergence Divergence',
+                params: { fast: 12, slow: 26, signal: 9 }
+            },
+            ema: {
+                name: 'EMA',
+                fullName: 'Exponential Moving Average',
+                params: { period: 20 }
+            },
+            sma: {
+                name: 'SMA',
+                fullName: 'Simple Moving Average',
+                params: { period: 50 }
+            },
+            bollinger: {
+                name: 'Bollinger',
+                fullName: 'Bollinger Bands',
+                params: { period: 20, stdDev: 2 }
+            },
+            stochastic: {
+                name: 'Stochastic',
+                fullName: 'Stochastic Oscillator',
+                params: { k: 14, d: 3, overbought: 80, oversold: 20 }
+            },
+            atr: {
+                name: 'ATR',
+                fullName: 'Average True Range',
+                params: { period: 14 }
+            },
+            adx: {
+                name: 'ADX',
+                fullName: 'Average Directional Index',
+                params: { period: 14 }
+            },
+            cci: {
+                name: 'CCI',
+                fullName: 'Commodity Channel Index',
+                params: { period: 20 }
+            },
+            obv: {
+                name: 'OBV',
+                fullName: 'On Balance Volume',
+                params: {}
+            },
+            vwap: {
+                name: 'VWAP',
+                fullName: 'Volume Weighted Average Price',
+                params: {}
+            },
+            fibonacci: {
+                name: 'Fibonacci',
+                fullName: 'Fibonacci Retracement',
+                params: { lookback: 100 }
+            },
+            ichimoku: {
+                name: 'Ichimoku',
+                fullName: 'Ichimoku Cloud',
+                params: { tenkan: 9, kijun: 26, senkou: 52 }
+            },
+            parabolicSar: {
+                name: 'Parabolic SAR',
+                fullName: 'Parabolic Stop and Reverse',
+                params: { acceleration: 0.02, maximum: 0.2 }
+            },
+            williamsR: {
+                name: 'Williams %R',
+                fullName: 'Williams Percent Range',
+                params: { period: 14 }
+            }
+        };
+
+        // Initialize
+        window.onload = function() {
+            initializeIndicatorSelector();
+            initializeChart();
+            addLog('Système initialisé avec succès', 'success');
+            requestWakeLock();
+        };
+
+        // Initialize Indicator Selector
+        function initializeIndicatorSelector() {
+            const selector = document.getElementById('indicatorSelector');
+            selector.innerHTML = '';
+
+            for (const [key, indicator] of Object.entries(availableIndicators)) {
+                const card = document.createElement('div');
+                card.className = 'indicator-card';
+                card.id = `indicator-${key}`;
+                
+                let paramsHtml = '';
+                for (const [paramKey, paramValue] of Object.entries(indicator.params)) {
+                    paramsHtml += `
+                        <div style="margin-top: 8px;">
+                            <small>${paramKey}:</small>
+                            <input type="number" 
+                                   id="${key}-${paramKey}" 
+                                   value="${paramValue}" 
+                                   step="0.01"
+                                   style="width: 100%; padding: 5px; border-radius: 5px; border: none; background: rgba(255,255,255,0.2); color: white;">
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <h4>${indicator.name}</h4>
+                    <small style="opacity: 0.7;">${indicator.fullName}</small>
+                    <div class="indicator-settings" id="settings-${key}" style="display: none;">
+                        ${paramsHtml}
+                    </div>
+                `;
+
+                card.onclick = function() {
+                    toggleIndicator(key);
+                };
+
+                selector.appendChild(card);
+            }
+        }
+
+        // Toggle Indicator Selection
+        function toggleIndicator(key) {
+            const card = document.getElementById(`indicator-${key}`);
+            const settings = document.getElementById(`settings-${key}`);
+            
+            if (selectedIndicators[key]) {
+                delete selectedIndicators[key];
+                card.classList.remove('active');
+                settings.style.display = 'none';
+                addLog(`Indicateur ${availableIndicators[key].name} désactivé`, 'warning');
+            } else {
+                selectedIndicators[key] = { ...availableIndicators[key] };
+                card.classList.add('active');
+                settings.style.display = 'block';
+                addLog(`Indicateur ${availableIndicators[key].name} activé`, 'success');
+            }
+        }
+
+        // Connect Wallet
+        async function connectWallet() {
+            const privateKey = document.getElementById('privateKey').value;
+            
+            if (!privateKey) {
+                addLog('Veuillez entrer votre clé privée', 'error');
+                return;
+            }
+
+            try {
+                provider = new ethers.providers.JsonRpcProvider('https://bsc-dataseed1.binance.org:443');
+                wallet = new ethers.Wallet(privateKey, provider);
+                
+                updateStatus('walletStatus', 'green');
+                document.getElementById('walletText').textContent = 'Connecté';
+                
+                const balance = await provider.getBalance(wallet.address);
+                const balanceInBnb = ethers.utils.formatEther(balance);
+                
+                addLog(`Wallet connecté: ${wallet.address.substring(0, 10)}...`, 'success');
+                addLog(`Balance: ${parseFloat(balanceInBnb).toFixed(4)} BNB`, 'success');
+                
+            } catch (error) {
+                addLog(`Erreur de connexion wallet: ${error.message}`, 'error');
+                updateStatus('walletStatus', 'red');
+            }
+        }
+
+        // Connect Binance
+        function connectBinance() {
+            const apiKey = document.getElementById('binanceApiKey').value;
+            const secretKey = document.getElementById('binanceSecretKey').value;
+
+            if (!apiKey || !secretKey) {
+                addLog('Veuillez entrer vos clés API Binance', 'error');
+                return;
+            }
+
+            // Store keys (in production, use secure storage)
+            sessionStorage.setItem('binanceApiKey', apiKey);
+            sessionStorage.setItem('binanceSecretKey', secretKey);
+
+            updateStatus('binanceStatus', 'green');
+            document.getElementById('binanceText').textContent = 'Connecté';
+            addLog('Binance API connectée avec succès', 'success');
+
+            // Start price feed
+            connectBinanceWebSocket();
+        }
+
+        // Connect Binance WebSocket
+        function connectBinanceWebSocket() {
+            if (binanceWs) {
+                binanceWs.close();
+            }
+
+            const symbol = currentPair.toLowerCase();
+            binanceWs = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@trade`);
+
+            binanceWs.onopen = function() {
+                addLog('WebSocket Binance connecté', 'success');
+            };
+
+            binanceWs.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updatePrice(parseFloat(data.p));
+            };
+
+            binanceWs.onerror = function(error) {
+                addLog('Erreur WebSocket: ' + error.message, 'error');
+            };
+
+            binanceWs.onclose = function() {
+                addLog('WebSocket déconnecté', 'warning');
+                // Reconnect after 5 seconds
+                setTimeout(connectBinanceWebSocket, 5000);
+            };
+        }
+
+        // Update Price
+        function updatePrice(price) {
+            const priceElement = document.getElementById('currentPrice');
+            const changeElement = document.getElementById('priceChange');
+            
+            const oldPrice = parseFloat(priceElement.textContent.replace('$', '').replace(',', ''));
+            priceElement.textContent = `$${price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            if (oldPrice > 0) {
+                const change = ((price - oldPrice) / oldPrice) * 100;
+                changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                changeElement.className = change >= 0 ? 'change positive' : 'change negative';
+            }
+
+            // Add to chart
+            priceData.push({
+                time: new Date(),
+                price: price
+            });
+
+            // Keep only last 100 points
+            if (priceData.length > 100) {
+                priceData.shift();
+            }
+
+            updateChart();
+            
+            // Calculate indicators if bot is active
+            if (botActive) {
+                calculateIndicators(priceData);
+            }
+        }
+
+        // Calculate Indicators
+        function calculateIndicators(data) {
+            const prices = data.map(d => d.price);
+            
+            for (const [key, indicator] of Object.entries(selectedIndicators)) {
+                switch(key) {
+                    case 'rsi':
+                        indicatorData.rsi = calculateRSI(prices, indicator.params.period);
+                        break;
+                    case 'macd':
+                        indicatorData.macd = calculateMACD(prices, indicator.params);
+                        break;
+                    case 'ema':
+                        indicatorData.ema = calculateEMA(prices, indicator.params.period);
+                        break;
+                    case 'sma':
+                        indicatorData.sma = calculateSMA(prices, indicator.params.period);
+                        break;
+                    case 'bollinger':
+                        indicatorData.bollinger = calculateBollingerBands(prices, indicator.params);
+                        break;
+                    case 'stochastic':
+                        indicatorData.stochastic = calculateStochastic(data, indicator.params);
+                        break;
+                    case 'atr':
+                        indicatorData.atr = calculateATR(data, indicator.params.period);
+                        break;
+                    // Add more indicator calculations as needed
+                }
+            }
+
+            updateIndicatorDisplay();
+            checkTradingSignals();
+        }
+
+        // Calculate RSI
+        function calculateRSI(prices, period) {
+            if (prices.length < period + 1) return null;
+            
+            let gains = 0;
+            let losses = 0;
+            
+            for (let i = prices.length - period; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                if (change > 0) gains += change;
+                else losses -= change;
+            }
+            
+            const avgGain = gains / period;
+            const avgLoss = losses / period;
+            
+            if (avgLoss === 0) return 100;
+            
+            const rs = avgGain / avgLoss;
+            const rsi = 100 - (100 / (1 + rs));
+            
+            return rsi.toFixed(2);
+        }
+
+        // Calculate MACD
+        function calculateMACD(prices, params) {
+            const fastEMA = calculateEMA(prices, params.fast);
+            const slowEMA = calculateEMA(prices, params.slow);
+            
+            if (!fastEMA || !slowEMA) return null;
+            
+            const macdLine = fastEMA - slowEMA;
+            
+            return {
+                macd: macdLine.toFixed(2),
+                signal: 0, // Simplified
+                histogram: macdLine.toFixed(2)
+            };
+        }
+
+        // Calculate EMA
+        function calculateEMA(prices, period) {
+            if (prices.length < period) return null;
+            
+            const k = 2 / (period + 1);
+            let ema = prices[prices.length - period];
+            
+            for (let i = prices.length - period + 1; i < prices.length; i++) {
+                ema = prices[i] * k + ema * (1 - k);
+            }
+            
+            return ema;
+        }
+
+        // Calculate SMA
+        function calculateSMA(prices, period) {
+            if (prices.length < period) return null;
+            
+            const slice = prices.slice(-period);
+            const sum = slice.reduce((a, b) => a + b, 0);
+            
+            return (sum / period).toFixed(2);
+        }
+
+        // Calculate Bollinger Bands
+        function calculateBollingerBands(prices, params) {
+            const sma = calculateSMA(prices, params.period);
+            if (!sma) return null;
+            
+            const slice = prices.slice(-params.period);
+            const squaredDiffs = slice.map(price => Math.pow(price - sma, 2));
+            const variance = squaredDiffs.reduce((a, b) => a + b, 0) / params.period;
+            const stdDev = Math.sqrt(variance);
+            
+            return {
+                upper: (parseFloat(sma) + (stdDev * params.stdDev)).toFixed(2),
+                middle: sma,
+                lower: (parseFloat(sma) - (stdDev * params.stdDev)).toFixed(2)
+            };
+        }
+
+        // Calculate Stochastic
+        function calculateStochastic(data, params) {
+            if (data.length < params.k) return null;
+            
+            const slice = data.slice(-params.k);
+            const prices = slice.map(d => d.price);
+            const high = Math.max(...prices);
+            const low = Math.min(...prices);
+            const current = prices[prices.length - 1];
+            
+            const k = ((current - low) / (high - low)) * 100;
+            
+            return {
+                k: k.toFixed(2),
+                d: k.toFixed(2) // Simplified
+            };
+        }
+
+        // Calculate ATR
+        function calculateATR(data, period) {
+            if (data.length < period + 1) return null;
+            
+            let trSum = 0;
+            for (let i = data.length - period; i < data.length; i++) {
+                const high = data[i].price;
+                const low = data[i].price * 0.99; // Simplified
+                const prevClose = data[i - 1].price;
+                
+                const tr = Math.max(
+                    high - low,
+                    Math.abs(high - prevClose),
+                    Math.abs(low - prevClose)
+                );
+                
+                trSum += tr;
+            }
+            
+            return (trSum / period).toFixed(2);
+        }
+
+        // Update Indicator Display
+        function updateIndicatorDisplay() {
+            const container = document.getElementById('indicatorValues');
+            container.innerHTML = '';
+            
+            for (const [key, value] of Object.entries(indicatorData)) {
+                const card = document.createElement('div');
+                card.className = 'indicator-value-card';
+                
+                let displayValue = '';
+                if (typeof value === 'object') {
+                    displayValue = Object.entries(value)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join('<br>');
+                } else {
+                    displayValue = value;
+                }
+                
+                card.innerHTML = `
+                    <div class="label">${availableIndicators[key]?.name || key.toUpperCase()}</div>
+                    <div class="value">${displayValue}</div>
+                `;
+                
+                container.appendChild(card);
+            }
+        }
+
+        // Check Trading Signals
+        function checkTradingSignals() {
+            if (!botActive) return;
+            
+            let buySignals = 0;
+            let sellSignals = 0;
+            
+            // Check RSI
+            if (indicatorData.rsi) {
+                const rsi = parseFloat(indicatorData.rsi);
+                const params = selectedIndicators.rsi?.params;
+                if (params) {
+                    if (rsi < params.oversold) buySignals++;
+                    if (rsi > params.overbought) sellSignals++;
+                }
+            }
+            
+            // Check Stochastic
+            if (indicatorData.stochastic) {
+                const k = parseFloat(indicatorData.stochastic.k);
+                const params = selectedIndicators.stochastic?.params;
+                if (params) {
+                    if (k < params.oversold) buySignals++;
+                    if (k > params.overbought) sellSignals++;
+                }
+            }
+            
+            // Check MACD
+            if (indicatorData.macd) {
+                const macd = parseFloat(indicatorData.macd.histogram);
+                if (macd > 0) buySignals++;
+                if (macd < 0) sellSignals++;
+            }
+            
+            // Execute trades based on signals
+            const totalIndicators = Object.keys(selectedIndicators).length;
+            const buyThreshold = Math.ceil(totalIndicators * 0.6);
+            const sellThreshold = Math.ceil(totalIndicators * 0.6);
+            
+            if (buySignals >= buyThreshold) {
+                executeBuy();
+            } else if (sellSignals >= sellThreshold) {
+                executeSell();
+            }
+        }
+
+        // Execute Buy
+        function executeBuy() {
+            const amount = document.getElementById('investAmount').value;
+            const currentPrice = parseFloat(document.getElementById('currentPrice').textContent.replace('$', '').replace(',', ''));
+            
+            addLog(`🟢 SIGNAL D'ACHAT détecté à ${currentPrice}`, 'success');
+            addLog(`Montant: ${amount} USDT`, 'success');
+            
+            updateStatus('positionStatus', 'green');
+            document.getElementById('positionText').textContent = 'Long';
+            
+            // In production, execute actual trade via Binance API
+        }
+
+        // Execute Sell
+        function executeSell() {
+            const currentPrice = parseFloat(document.getElementById('currentPrice').textContent.replace('$', '').replace(',', ''));
+            
+            addLog(`🔴 SIGNAL DE VENTE détecté à ${currentPrice}`, 'warning');
+            
+            updateStatus('positionStatus', 'yellow');
+            document.getElementById('positionText').textContent = 'Fermée';
+            
+            // In production, execute actual trade via Binance API
+        }
+
+        // Select Trading Pair
+        function selectPair(pair) {
+            currentPair = pair;
+            
+            // Update UI
+            document.querySelectorAll('.trading-pair-selector button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            addLog(`Paire de trading changée: ${pair}`, 'success');
+            
+            // Reconnect WebSocket with new pair
+            if (binanceWs) {
+                connectBinanceWebSocket();
+            }
+        }
+
+        // Update Trading Mode
+        function updateTradingMode() {
+            const mode = document.getElementById('tradingMode').value;
+            const modeText = mode === 'auto' ? 'Automatique 24/7' : 'Manuel';
+            
+            document.getElementById('modeText').textContent = modeText;
+            addLog(`Mode de trading: ${modeText}`, 'success');
+        }
+
+        // Start Bot
+        function startBot() {
+            if (Object.keys(selectedIndicators).length === 0) {
+                addLog('Veuillez sélectionner au moins un indicateur', 'error');
+                return;
+            }
+            
+            if (!binanceWs || binanceWs.readyState !== WebSocket.OPEN) {
+                addLog('Veuillez connecter Binance API d\'abord', 'error');
+                return;
+            }
+            
+            botActive = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            updateStatus('modeStatus', 'green');
+            
+            addLog('🚀 Bot de trading démarré', 'success');
+            addLog(`Indicateurs actifs: ${Object.keys(selectedIndicators).join(', ')}`, 'success');
+        }
+
+        // Stop Bot
+        function stopBot() {
+            botActive = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            updateStatus('modeStatus', 'yellow');
+            document.getElementById('modeText').textContent = 'Manuel';
+            
+            addLog('⏹️ Bot de trading arrêté', 'warning');
+        }
+
+        // Initialize Chart
+        function initializeChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Prix',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update Chart
+        function updateChart() {
+            if (!priceChart) return;
+            
+            priceChart.data.labels = priceData.map(d => 
+                d.time.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})
+            );
+            priceChart.data.datasets[0].data = priceData.map(d => d.price);
+            priceChart.update('none');
+        }
+
+        // Update Status
+        function updateStatus(elementId, color) {
+            const element = document.getElementById(elementId);
+            element.className = `status-indicator ${color}`;
+        }
+
+        // Add Log Entry
+        function addLog(message, type = 'info') {
+            const logPanel = document.getElementById('logPanel');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const time = new Date().toLocaleTimeString('fr-FR');
+            entry.textContent = `[${time}] ${message}`;
+            
+            logPanel.appendChild(entry);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        // Request Wake Lock
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    updateStatus('wakeLockStatus', 'green');
+                    document.getElementById('wakeLockText').textContent = 'Actif';
+                    addLog('Wake Lock activé', 'success');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        updateStatus('wakeLockStatus', 'yellow');
+                        document.getElementById('wakeLockText').textContent = 'Relâché';
+                        addLog('Wake Lock relâché', 'warning');
+                    });
+                } catch (err) {
+                    addLog(`Erreur Wake Lock: ${err.message}`, 'error');
+                }
+            }
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            if (binanceWs) {
+                binanceWs.close();
+            }
+            if (wakeLock) {
+                wakeLock.release();
+            }
+        });
+    </script>
+</body>
+</html>
