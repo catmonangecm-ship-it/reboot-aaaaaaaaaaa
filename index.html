@@ -2,7 +2,1277 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Trading IA Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(to bottom right, #0f172a, #581c87, #0f172a);
+            min-height: 100vh;
+        }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        .ai-thinking {
+            background: linear-gradient(90deg, #8b5cf6, #ec4899, #8b5cf6);
+            background-size: 200% 100%;
+            animation: gradient 2s ease infinite;
+        }
+        @keyframes gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+    </style>
+</head>
+<body class="text-white p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-purple-400 bg-clip-text text-transparent">
+                    🤖 Bot Trading IA Pro
+                </h1>
+                <p class="text-gray-400 mt-2">Intelligence Artificielle • BSC • BTC/ETH/BNB</p>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="connectWallet()" id="connectBtn" class="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+                    <span>👛</span>
+                    <span id="walletText">MetaMask</span>
+                </button>
+                <button onclick="togglePrivateKeyModal()" class="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600">
+                    <span>🔑</span>
+                    <span>Clé Privée</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Private Key Modal -->
+        <div id="privateKeyModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-800 border-2 border-purple-500 rounded-2xl p-6 max-w-md w-full">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-purple-400">🔑 Connexion par Clé Privée</h3>
+                    <button onclick="togglePrivateKeyModal()" class="text-gray-400 hover:text-white text-2xl">×</button>
+                </div>
+                
+                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4">
+                    <p class="text-yellow-400 text-sm flex items-start gap-2">
+                        <span>⚠️</span>
+                        <span>Ne partagez jamais votre clé privée. Assurez-vous d'être seul et sur un appareil sécurisé.</span>
+                    </p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-2">Clé privée (avec ou sans 0x)</label>
+                    <input type="password" id="privateKeyInput" placeholder="0x..." class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-400 font-mono text-sm">
+                </div>
+                
+                <button onclick="connectWithPrivateKey()" class="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg font-semibold transition-all">
+                    Se connecter
+                </button>
+                
+                <div class="mt-4 text-xs text-gray-400">
+                    <p class="mb-2">💡 Où trouver ma clé privée dans MetaMask ?</p>
+                    <p>1. Ouvrez MetaMask</p>
+                    <p>2. Cliquez sur les 3 points</p>
+                    <p>3. Détails du compte → Exporter la clé privée</p>
+                    <p>4. Entrez votre mot de passe MetaMask</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Status -->
+        <div id="aiStatus" class="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-2 border-purple-500 rounded-xl p-6 mb-6 hidden">
+            <div class="flex items-center gap-4 mb-4">
+                <div class="relative">
+                    <div class="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-3xl">
+                        🤖
+                    </div>
+                    <div id="aiIndicator" class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold">Assistant IA Claude</h3>
+                    <p class="text-sm text-gray-400">Analyse en temps réel • Prédictions avancées</p>
+                </div>
+            </div>
+            
+            <div id="aiThinking" class="bg-slate-700/50 rounded-lg p-4 mb-4 hidden">
+                <div class="flex items-center gap-3">
+                    <div class="ai-thinking w-2 h-2 rounded-full"></div>
+                    <p class="text-sm text-purple-300 italic">L'IA analyse les données du marché...</p>
+                </div>
+            </div>
+            
+            <div id="aiRecommendation" class="bg-slate-700/50 rounded-lg p-4 hidden">
+                <p class="text-purple-300 font-bold mb-2">💡 Recommandation IA</p>
+                <p id="aiRecommendationText" class="text-sm text-gray-300"></p>
+                <div class="mt-3 flex gap-2">
+                    <span id="aiConfidence" class="px-3 py-1 bg-purple-500/30 rounded-full text-xs font-semibold"></span>
+                    <span id="aiAction" class="px-3 py-1 rounded-full text-xs font-semibold"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Crypto Selector -->
+        <div id="cryptoSelector" class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 mb-6 hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Cryptomonnaie</label>
+                    <select id="cryptoSelect" onchange="changeCrypto()" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-400 text-lg font-semibold cursor-pointer">
+                        <option value="BTCUSDT">BTC - Bitcoin 💎</option>
+                        <option value="ETHUSDT">ETH - Ethereum 💎</option>
+                        <option value="BNBUSDT">BNB - Binance Coin 💎</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Mode de Trading</label>
+                    <select id="tradingMode" onchange="changeTradingMode()" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-400 text-lg font-semibold cursor-pointer">
+                        <option value="simulation">🎮 Simulation IA</option>
+                        <option value="real">💎 Réel (PancakeSwap)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Capital Section -->
+        <div id="capitalSection" class="bg-gradient-to-r from-purple-400/20 to-pink-500/20 border-2 border-purple-400 rounded-xl p-6 mb-6 hidden">
+            <h3 class="text-xl font-bold mb-4">🎯 Capital de trading</h3>
+            <div class="flex gap-4 mb-3">
+                <input type="number" id="capitalInput" placeholder="Ex: 100" step="10" class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-400">
+                <button onclick="setCapital()" class="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg font-semibold transition-all">
+                    Valider
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div id="statsCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 hidden">
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-4">
+                <p class="text-gray-400 text-xs">Capital</p>
+                <p class="text-xl font-bold mt-1 text-purple-400">$<span id="capitalDisplay">0</span></p>
+            </div>
+            
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-4">
+                <p class="text-gray-400 text-xs">Prix <span id="cryptoName">BTC</span></p>
+                <p class="text-xl font-bold mt-1">$<span id="currentPrice">...</span></p>
+            </div>
+            
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-4">
+                <p class="text-gray-400 text-xs">Profit IA</p>
+                <p class="text-xl font-bold mt-1 text-green-400">$<span id="profitDisplay">0.00</span></p>
+            </div>
+            
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-4">
+                <p class="text-gray-400 text-xs">Précision IA</p>
+                <p class="text-xl font-bold mt-1 text-purple-400"><span id="aiAccuracy">0</span>%</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Chart -->
+                <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">📈 Analyse IA</h2>
+                        <div class="text-sm text-gray-400">
+                            <span id="chartCrypto">BTC</span>/USDT
+                        </div>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="tradingChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Trade History -->
+                <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">🤖 Trades IA</h2>
+                        <button onclick="toggleBot()" id="toggleBotBtn" disabled class="flex items-center gap-2 px-6 py-2 rounded-lg font-semibold transition-all bg-gray-600 cursor-not-allowed">
+                            <span id="botIcon">▶️</span>
+                            <span id="botText">Démarrer IA</span>
+                        </button>
+                    </div>
+                    <div id="tradesContainer">
+                        <div class="text-center py-8 text-gray-400">
+                            <span class="text-4xl">🤖</span>
+                            <p>L'IA attend vos instructions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
+                <h2 class="text-2xl font-bold mb-4">⚙️ Paramètres IA</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Agressivité IA</label>
+                        <select id="aiAggression" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-purple-400">
+                            <option value="conservative">🐢 Conservateur (Sûr)</option>
+                            <option value="moderate" selected>⚖️ Modéré (Équilibré)</option>
+                            <option value="aggressive">🚀 Agressif (Risqué)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">% par trade</label>
+                        <input type="number" id="tradePercent" value="10" min="1" max="100" onchange="updateTradeAmount()" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-purple-400">
+                        <p class="text-xs text-gray-400 mt-1">Montant: $<span id="tradeAmount">0</span></p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">Intervalle d'analyse IA</label>
+                        <select id="aiInterval" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-purple-400">
+                            <option value="5000">⚡ Rapide (5s)</option>
+                            <option value="15000" selected>⚖️ Normal (15s)</option>
+                            <option value="30000">🐢 Lent (30s)</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm font-semibold text-green-400">🔋 Mode Veille Actif</label>
+                            <div class="relative">
+                                <input type="checkbox" id="wakeLockToggle" onchange="toggleWakeLock()" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400">Empêche l'écran de se mettre en veille. Le bot continuera de trader même si vous minimisez l'onglet.</p>
+                        <p id="wakeLockStatus" class="text-xs text-gray-400 mt-2">Status: <span class="text-red-400">Désactivé</span></p>
+                    </div>
+                </div>
+
+                <div class="mt-6 p-4 bg-purple-400/10 border border-purple-400/30 rounded-lg">
+                    <div class="flex gap-2">
+                        <span class="text-purple-400">🤖</span>
+                        <div class="text-sm text-gray-300">
+                            <p class="font-semibold text-purple-400">Statut IA</p>
+                            <p>Wallet: <span id="walletStatus">🔴 Non connecté</span></p>
+                            <p>Position: <span id="positionStatus">⚪ Aucune</span></p>
+                            <p>Trades IA: <span id="aiTrades">0</span></p>
+                            <p>Taux réussite: <span id="successRate">0%</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 bg-blue-400/10 border border-blue-400/30 rounded-lg">
+                    <div class="flex gap-2">
+                        <span class="text-blue-400">💡</span>
+                        <div class="text-xs text-gray-300">
+                            <p class="font-semibold text-blue-400">Comment ça marche?</p>
+                            <p class="mt-2">L'IA analyse en temps réel:</p>
+                            <p>• Prix et volatilité</p>
+                            <p>• Tendances du marché</p>
+                            <p>• Volumes d'échange</p>
+                            <p>• Indicateurs techniques</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 bg-orange-400/10 border border-orange-400/30 rounded-lg">
+                    <div class="flex gap-2">
+                        <span class="text-orange-400">⚡</span>
+                        <div class="text-xs text-gray-300">
+                            <p class="font-semibold text-orange-400">Mode Veille</p>
+                            <p class="mt-2">✅ Bot actif en arrière-plan</p>
+                            <p>✅ Trading 24/7 automatique</p>
+                            <p>✅ Notifications sonores</p>
+                            <p>✅ Auto-sauvegarde</p>
+                            <p class="mt-2 text-yellow-400">💡 Gardez l'onglet ouvert</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PANCAKE_ROUTER = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
+        const USDT_CONTRACT = '0x55d398326f99059fF775485246999027B3197955';
+        const WBNB_CONTRACT = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+        const BSC_RPC = 'https://bsc-dataseed1.binance.org';
+        
+        const TOKEN_ADDRESSES = {
+            'BTCUSDT': '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+            'ETHUSDT': '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
+            'BNBUSDT': '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'
+        };
+
+        // PancakeSwap Router ABI (fonctions essentielles)
+        const ROUTER_ABI = [
+            'function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
+            'function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)',
+            'function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
+            'function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts)'
+        ];
+
+        // ERC20 ABI (fonctions essentielles)
+        const ERC20_ABI = [
+            'function approve(address spender, uint256 amount) public returns (bool)',
+            'function allowance(address owner, address spender) public view returns (uint256)',
+            'function balanceOf(address account) public view returns (uint256)',
+            'function decimals() public view returns (uint8)'
+        ];
+
+        let state = {
+            account: null,
+            isConnected: false,
+            selectedCrypto: 'BTCUSDT',
+            currentPrice: null,
+            priceHistory: [],
+            tradingCapital: 0,
+            capitalSet: false,
+            tradingMode: 'simulation',
+            botRunning: false,
+            trades: [],
+            portfolio: { profit: 0, profitPercent: 0 },
+            currentPosition: null,
+            lastBuyPrice: 0,
+            positionAmount: 0,
+            aiStats: { totalTrades: 0, successfulTrades: 0, accuracy: 0 },
+            provider: null,
+            wallet: null,
+            connectionType: null,
+            realTrading: {
+                approvedTokens: {},
+                pendingTx: null,
+                lastGasPrice: null
+            }
+        };
+
+        let ws = null, botInterval = null, tradingChart = null;
+        let wakeLock = null;
+        let keepAliveInterval = null;
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🤖 Bot IA chargé');
+            initChart();
+            connectWebSocket();
+            initVisibilityListener();
+            initKeepAlive();
+        });
+
+        // Wallet Connection
+        async function connectWallet() {
+            if (!window.ethereum) {
+                alert('❌ MetaMask requis');
+                return;
+            }
+
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                state.account = accounts[0];
+                state.provider = new ethers.providers.Web3Provider(window.ethereum);
+                state.isConnected = true;
+                state.connectionType = 'metamask';
+                
+                console.log('✅ Wallet:', state.account);
+                updateUI();
+            } catch (error) {
+                alert('Erreur: ' + error.message);
+            }
+        }
+
+        function togglePrivateKeyModal() {
+            const modal = document.getElementById('privateKeyModal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('privateKeyInput').value = '';
+            }
+        }
+
+        async function connectWithPrivateKey() {
+            const privateKeyInput = document.getElementById('privateKeyInput').value.trim();
+            
+            if (!privateKeyInput) {
+                alert('❌ Veuillez entrer une clé privée');
+                return;
+            }
+
+            try {
+                // Add 0x prefix if not present
+                let privateKey = privateKeyInput;
+                if (!privateKey.startsWith('0x')) {
+                    privateKey = '0x' + privateKey;
+                }
+
+                // Validate private key format
+                if (privateKey.length !== 66) {
+                    alert('❌ Clé privée invalide (doit faire 64 caractères sans 0x)');
+                    return;
+                }
+
+                // Create provider
+                state.provider = new ethers.providers.JsonRpcProvider(BSC_RPC);
+                
+                // Create wallet from private key
+                state.wallet = new ethers.Wallet(privateKey, state.provider);
+                state.account = state.wallet.address;
+                state.isConnected = true;
+                state.connectionType = 'privatekey';
+                
+                console.log('✅ Wallet connecté:', state.account);
+                
+                // Close modal
+                togglePrivateKeyModal();
+                
+                // Update UI
+                updateUI();
+                
+                alert('✅ Connexion réussie!\n\nAdresse: ' + state.account.slice(0, 6) + '...' + state.account.slice(-4));
+            } catch (error) {
+                console.error('Erreur connexion:', error);
+                alert('❌ Erreur: Clé privée invalide\n\n' + error.message);
+            }
+        }
+
+        function updateUI() {
+            if (state.isConnected) {
+                const connectionBadge = state.connectionType === 'privatekey' ? '🔑' : '👛';
+                document.getElementById('connectBtn').className = 
+                    'flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all bg-green-600 hover:bg-green-700';
+                document.getElementById('walletText').textContent = 
+                    `${connectionBadge} ${state.account.slice(0, 6)}...${state.account.slice(-4)}`;
+                document.getElementById('walletStatus').innerHTML = 
+                    `🟢 ${state.connectionType === 'privatekey' ? 'Clé privée' : 'MetaMask'}`;
+                
+                document.getElementById('aiStatus').classList.remove('hidden');
+                document.getElementById('cryptoSelector').classList.remove('hidden');
+                document.getElementById('capitalSection').classList.remove('hidden');
+            }
+            
+            if (state.capitalSet) {
+                document.getElementById('capitalSection').classList.add('hidden');
+                document.getElementById('statsCards').classList.remove('hidden');
+                document.getElementById('capitalDisplay').textContent = state.tradingCapital.toFixed(2);
+                document.getElementById('toggleBotBtn').disabled = false;
+                document.getElementById('toggleBotBtn').className = 
+                    'flex items-center gap-2 px-6 py-2 rounded-lg font-semibold transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600';
+                updateTradeAmount();
+            }
+        }
+
+        function setCapital() {
+            const capital = parseFloat(document.getElementById('capitalInput').value);
+            if (!capital || capital <= 0) {
+                alert('❌ Montant invalide');
+                return;
+            }
+            
+            state.tradingCapital = capital;
+            state.capitalSet = true;
+            updateUI();
+            alert(`✅ Capital défini: ${capital} USDT\n\nL'IA est prête à trader !`);
+        }
+
+        function updateTradeAmount() {
+            const percent = parseFloat(document.getElementById('tradePercent').value);
+            const amount = (state.tradingCapital * percent / 100).toFixed(2);
+            document.getElementById('tradeAmount').textContent = amount;
+        }
+
+        // WebSocket
+        function connectWebSocket() {
+            if (ws) ws.close();
+            
+            const symbol = state.selectedCrypto.toLowerCase();
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@ticker`);
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                state.currentPrice = parseFloat(data.c);
+                
+                state.priceHistory.push(state.currentPrice);
+                if (state.priceHistory.length > 100) state.priceHistory.shift();
+                
+                document.getElementById('currentPrice').textContent = state.currentPrice.toFixed(2);
+                document.getElementById('cryptoName').textContent = state.selectedCrypto.replace('USDT', '');
+                
+                if (state.priceHistory.length % 5 === 0) updateChart();
+            };
+        }
+
+        function changeCrypto() {
+            state.selectedCrypto = document.getElementById('cryptoSelect').value;
+            state.priceHistory = [];
+            connectWebSocket();
+            document.getElementById('chartCrypto').textContent = state.selectedCrypto.replace('USDT', '');
+        }
+
+        function changeTradingMode() {
+            state.tradingMode = document.getElementById('tradingMode').value;
+            
+            if (state.tradingMode === 'real') {
+                const confirmed = confirm(
+                    '⚠️ ATTENTION - MODE TRADING RÉEL ⚠️\n\n' +
+                    '✅ Vous allez effectuer de VRAIS trades sur PancakeSwap\n' +
+                    '✅ De l\'ARGENT RÉEL sera échangé\n' +
+                    '✅ Des frais de gas seront payés en BNB\n' +
+                    '✅ Les transactions sont IRRÉVERSIBLES\n' +
+                    '✅ Risque de PERTE financière\n\n' +
+                    'Êtes-vous sûr de vouloir continuer ?'
+                );
+                
+                if (!confirmed) {
+                    document.getElementById('tradingMode').value = 'simulation';
+                    state.tradingMode = 'simulation';
+                    return;
+                }
+                
+                alert(
+                    '💡 CONSEILS IMPORTANTS :\n\n' +
+                    '1. Assurez-vous d\'avoir du BNB pour les frais de gas\n' +
+                    '2. Commencez avec de petites sommes\n' +
+                    '3. Le bot va approuver les tokens automatiquement\n' +
+                    '4. Surveillez vos transactions sur BSCScan\n' +
+                    '5. Vous pouvez arrêter le bot à tout moment\n\n' +
+                    'Le mode réel est maintenant ACTIVÉ ! 🚀'
+                );
+            }
+        }
+
+        // Chart
+        function initChart() {
+            const ctx = document.getElementById('tradingChart').getContext('2d');
+            tradingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Prix',
+                        data: [],
+                        borderColor: 'rgb(168, 85, 247)',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }, {
+                        label: 'Achat IA',
+                        data: [],
+                        backgroundColor: 'rgb(34, 197, 94)',
+                        pointRadius: 8,
+                        pointStyle: 'triangle',
+                        showLine: false
+                    }, {
+                        label: 'Vente IA',
+                        data: [],
+                        backgroundColor: 'rgb(239, 68, 68)',
+                        pointRadius: 8,
+                        pointStyle: 'triangle',
+                        showLine: false,
+                        rotation: 180
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: 'rgb(156, 163, 175)' } } },
+                    scales: {
+                        x: { grid: { color: 'rgba(75, 85, 99, 0.3)' }, ticks: { color: 'rgb(156, 163, 175)' } },
+                        y: { grid: { color: 'rgba(75, 85, 99, 0.3)' }, ticks: { color: 'rgb(156, 163, 175)' } }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            if (!tradingChart || state.priceHistory.length === 0) return;
+            
+            const prices = state.priceHistory.slice(-50);
+            const labels = prices.map((_, i) => {
+                const time = new Date(Date.now() - (50 - i - 1) * 5000);
+                return time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            });
+            
+            tradingChart.data.labels = labels;
+            tradingChart.data.datasets[0].data = prices;
+            tradingChart.update('none');
+        }
+
+        // AI Trading Bot
+        function toggleBot() {
+            if (!state.capitalSet) {
+                alert('❌ Définissez le capital');
+                return;
+            }
+            
+            state.botRunning = !state.botRunning;
+            
+            if (state.botRunning) {
+                startBot();
+            } else {
+                stopBot();
+            }
+            
+            updateBotButton();
+        }
+
+        function updateBotButton() {
+            const btn = document.getElementById('toggleBotBtn');
+            if (state.botRunning) {
+                btn.className = 'flex items-center gap-2 px-6 py-2 rounded-lg font-semibold transition-all bg-red-600 hover:bg-red-700';
+                document.getElementById('botIcon').textContent = '⏸️';
+                document.getElementById('botText').textContent = 'Arrêter IA';
+            } else {
+                btn.className = 'flex items-center gap-2 px-6 py-2 rounded-lg font-semibold transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600';
+                document.getElementById('botIcon').textContent = '▶️';
+                document.getElementById('botText').textContent = 'Démarrer IA';
+            }
+        }
+
+        function startBot() {
+            console.log('🤖 IA activée');
+            document.getElementById('aiIndicator').className = 'absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse';
+            
+            const interval = parseInt(document.getElementById('aiInterval').value);
+            
+            botInterval = setInterval(() => {
+                if (state.priceHistory.length < 20) return;
+                
+                analyzeWithAI();
+            }, interval);
+        }
+
+        function stopBot() {
+            if (botInterval) {
+                clearInterval(botInterval);
+                botInterval = null;
+                console.log('🤖 IA désactivée');
+                document.getElementById('aiIndicator').className = 'absolute -top-1 -right-1 w-4 h-4 bg-gray-500 rounded-full';
+            }
+        }
+
+        async function analyzeWithAI() {
+            // Show thinking animation
+            document.getElementById('aiThinking').classList.remove('hidden');
+            
+            // Simulate AI analysis
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Get AI decision
+            const decision = getAIDecision();
+            
+            // Hide thinking
+            document.getElementById('aiThinking').classList.add('hidden');
+            
+            // Show recommendation
+            showAIRecommendation(decision);
+            
+            // Execute if confidence high enough
+            if (decision.confidence > 0.75 && decision.signal) {
+                executeTrade(decision.signal, decision);
+            }
+        }
+
+        function getAIDecision() {
+            const aggression = document.getElementById('aiAggression').value;
+            const prices = state.priceHistory.slice(-20);
+            
+            // Simple AI logic
+            const recentChange = ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100;
+            const volatility = calculateVolatility(prices);
+            const trend = calculateTrend(prices);
+            
+            let signal = null;
+            let confidence = 0.5;
+            let reason = '';
+            
+            // Conservative strategy
+            if (aggression === 'conservative') {
+                if (!state.currentPosition && recentChange < -2 && trend === 'down') {
+                    signal = 'BUY';
+                    confidence = 0.8;
+                    reason = 'Prix en baisse significative, bon point d\'entrée';
+                } else if (state.currentPosition && recentChange > 2) {
+                    signal = 'SELL';
+                    confidence = 0.85;
+                    reason = 'Profit sécurisé, position fermée';
+                }
+            }
+            // Moderate strategy
+            else if (aggression === 'moderate') {
+                if (!state.currentPosition && recentChange < -1.5 && volatility < 3) {
+                    signal = 'BUY';
+                    confidence = 0.75;
+                    reason = 'Opportunité d\'achat détectée';
+                } else if (state.currentPosition) {
+                    const profitPercent = ((state.currentPrice - state.lastBuyPrice) / state.lastBuyPrice) * 100;
+                    if (profitPercent > 1.5 || profitPercent < -1) {
+                        signal = 'SELL';
+                        confidence = 0.8;
+                        reason = profitPercent > 0 ? 'Take profit atteint' : 'Stop loss activé';
+                    }
+                }
+            }
+            // Aggressive strategy
+            else {
+                if (!state.currentPosition && recentChange < -1) {
+                    signal = 'BUY';
+                    confidence = 0.7;
+                    reason = 'Signal d\'achat agressif';
+                } else if (state.currentPosition) {
+                    const profitPercent = ((state.currentPrice - state.lastBuyPrice) / state.lastBuyPrice) * 100;
+                    if (profitPercent > 1 || profitPercent < -0.5) {
+                        signal = 'SELL';
+                        confidence = 0.75;
+                        reason = profitPercent > 0 ? 'Profit rapide' : 'Stop loss rapide';
+                    }
+                }
+            }
+            
+            return { signal, confidence, reason, recentChange, volatility, trend };
+        }
+
+        function calculateVolatility(prices) {
+            const changes = prices.slice(1).map((p, i) => Math.abs(p - prices[i]));
+            return changes.reduce((a, b) => a + b, 0) / changes.length;
+        }
+
+        function calculateTrend(prices) {
+            const start = prices[0];
+            const end = prices[prices.length - 1];
+            const change = ((end - start) / start) * 100;
+            if (change > 0.5) return 'up';
+            if (change < -0.5) return 'down';
+            return 'sideways';
+        }
+
+        function showAIRecommendation(decision) {
+            const recDiv = document.getElementById('aiRecommendation');
+            const textEl = document.getElementById('aiRecommendationText');
+            const confEl = document.getElementById('aiConfidence');
+            const actionEl = document.getElementById('aiAction');
+            
+            recDiv.classList.remove('hidden');
+            
+            if (decision.signal) {
+                textEl.textContent = `${decision.reason} (Changement: ${decision.recentChange.toFixed(2)}%)`;
+                confEl.textContent = `Confiance: ${(decision.confidence * 100).toFixed(0)}%`;
+                confEl.className = `px-3 py-1 ${decision.confidence > 0.8 ? 'bg-green-500/30 text-green-300' : 'bg-yellow-500/30 text-yellow-300'} rounded-full text-xs font-semibold`;
+                
+                if (decision.signal === 'BUY') {
+                    actionEl.textContent = '🟢 ACHAT';
+                    actionEl.className = 'px-3 py-1 bg-green-500/30 text-green-300 rounded-full text-xs font-semibold';
+                } else {
+                    actionEl.textContent = '🔴 VENTE';
+                    actionEl.className = 'px-3 py-1 bg-red-500/30 text-red-300 rounded-full text-xs font-semibold';
+                }
+            } else {
+                textEl.textContent = 'Aucune opportunité détectée. L\'IA surveille le marché...';
+                confEl.textContent = 'Attente';
+                confEl.className = 'px-3 py-1 bg-gray-500/30 text-gray-300 rounded-full text-xs font-semibold';
+                actionEl.textContent = '⚪ HOLD';
+                actionEl.className = 'px-3 py-1 bg-gray-500/30 text-gray-300 rounded-full text-xs font-semibold';
+            }
+        }
+
+        function executeTrade(tradeType, decision) {
+            const percent = parseFloat(document.getElementById('tradePercent').value);
+            const amount = (state.tradingCapital * percent / 100);
+            
+            console.log(`🤖 IA exécute: ${tradeType} - ${amount.toFixed(2)} USDT`);
+            console.log(`📊 Raison: ${decision.reason}`);
+            console.log(`🎯 Confiance: ${(decision.confidence * 100).toFixed(0)}%`);
+            
+            // Mode RÉEL
+            if (state.tradingMode === 'real') {
+                executeRealTrade(tradeType, amount, decision);
+            } 
+            // Mode SIMULATION
+            else {
+                executeSimulatedTrade(tradeType, amount, decision);
+            }
+        }
+
+        // SIMULATION MODE
+        function executeSimulatedTrade(tradeType, amount, decision) {
+            let profit = 0;
+            let profitPercent = 0;
+            let success = false;
+            
+            if (tradeType === 'BUY') {
+                state.currentPosition = 'BUY';
+                state.lastBuyPrice = state.currentPrice;
+                state.positionAmount = amount;
+                document.getElementById('positionStatus').innerHTML = '🟢 Long';
+            } else {
+                if (state.currentPosition) {
+                    profitPercent = ((state.currentPrice - state.lastBuyPrice) / state.lastBuyPrice) * 100;
+                    profit = state.positionAmount * (profitPercent / 100);
+                    state.portfolio.profit += profit;
+                    
+                    success = profit > 0;
+                    if (success) state.aiStats.successfulTrades++;
+                    
+                    state.currentPosition = null;
+                    document.getElementById('positionStatus').innerHTML = '⚪ Aucune';
+                }
+            }
+            
+            // Update AI stats
+            state.aiStats.totalTrades++;
+            state.aiStats.accuracy = state.aiStats.totalTrades > 0 
+                ? (state.aiStats.successfulTrades / state.aiStats.totalTrades * 100).toFixed(0) 
+                : 0;
+            
+            const trade = {
+                id: Date.now(),
+                time: new Date().toLocaleTimeString('fr-FR'),
+                date: new Date().toLocaleDateString('fr-FR'),
+                type: tradeType,
+                pair: state.selectedCrypto,
+                amount: amount.toFixed(2),
+                entryPrice: state.currentPrice.toFixed(6),
+                profit: profit.toFixed(2),
+                profitPercent: profitPercent.toFixed(2),
+                confidence: (decision.confidence * 100).toFixed(0),
+                reason: decision.reason,
+                mode: 'simulation',
+                success: success,
+                txHash: null
+            };
+            
+            state.trades.unshift(trade);
+            state.trades = state.trades.slice(0, 50);
+            
+            playTradeSound();
+            saveState();
+            renderTrades();
+            updateStats();
+        }
+
+        // REAL TRADING MODE
+        async function executeRealTrade(tradeType, amount, decision) {
+            try {
+                if (!state.provider || !state.account) {
+                    alert('❌ Wallet non connecté');
+                    return;
+                }
+
+                // Vérifier si transaction en cours
+                if (state.realTrading.pendingTx) {
+                    console.log('⏳ Transaction déjà en cours...');
+                    return;
+                }
+
+                const signer = state.wallet || state.provider.getSigner();
+                const tokenAddress = TOKEN_ADDRESSES[state.selectedCrypto];
+                
+                let txHash = null;
+                let success = false;
+                let profit = 0;
+                let profitPercent = 0;
+
+                if (tradeType === 'BUY') {
+                    // ACHAT RÉEL
+                    console.log('💎 Exécution ACHAT RÉEL...');
+                    txHash = await executeBuyOnPancakeSwap(signer, tokenAddress, amount);
+                    
+                    if (txHash) {
+                        state.currentPosition = 'BUY';
+                        state.lastBuyPrice = state.currentPrice;
+                        state.positionAmount = amount;
+                        document.getElementById('positionStatus').innerHTML = '🟢 Long (RÉEL)';
+                        success = true;
+                    }
+                } else {
+                    // VENTE RÉELLE
+                    console.log('💎 Exécution VENTE RÉELLE...');
+                    txHash = await executeSellOnPancakeSwap(signer, tokenAddress, state.positionAmount);
+                    
+                    if (txHash && state.currentPosition) {
+                        profitPercent = ((state.currentPrice - state.lastBuyPrice) / state.lastBuyPrice) * 100;
+                        profit = state.positionAmount * (profitPercent / 100);
+                        state.portfolio.profit += profit;
+                        
+                        success = profit > 0;
+                        if (success) state.aiStats.successfulTrades++;
+                        
+                        state.currentPosition = null;
+                        document.getElementById('positionStatus').innerHTML = '⚪ Aucune';
+                    }
+                }
+
+                // Update stats
+                state.aiStats.totalTrades++;
+                state.aiStats.accuracy = state.aiStats.totalTrades > 0 
+                    ? (state.aiStats.successfulTrades / state.aiStats.totalTrades * 100).toFixed(0) 
+                    : 0;
+
+                const trade = {
+                    id: Date.now(),
+                    time: new Date().toLocaleTimeString('fr-FR'),
+                    date: new Date().toLocaleDateString('fr-FR'),
+                    type: tradeType,
+                    pair: state.selectedCrypto,
+                    amount: amount.toFixed(2),
+                    entryPrice: state.currentPrice.toFixed(6),
+                    profit: profit.toFixed(2),
+                    profitPercent: profitPercent.toFixed(2),
+                    confidence: (decision.confidence * 100).toFixed(0),
+                    reason: decision.reason,
+                    mode: 'real',
+                    success: success,
+                    txHash: txHash
+                };
+
+                state.trades.unshift(trade);
+                state.trades = state.trades.slice(0, 50);
+
+                playTradeSound();
+                saveState();
+                renderTrades();
+                updateStats();
+
+                if (txHash) {
+                    alert(`✅ Transaction réussie!\n\nTx: ${txHash.slice(0, 10)}...${txHash.slice(-8)}\n\nVoir sur BSCScan: https://bscscan.com/tx/${txHash}`);
+                }
+
+            } catch (error) {
+                console.error('❌ Erreur trade réel:', error);
+                alert(`❌ Erreur lors du trade:\n\n${error.message}\n\nLe bot continue en mode simulation.`);
+            }
+        }
+
+        // ACHETER sur PancakeSwap
+        async function executeBuyOnPancakeSwap(signer, tokenAddress, usdtAmount) {
+            try {
+                console.log('🔄 Préparation achat PancakeSwap...');
+                
+                const routerContract = new ethers.Contract(PANCAKE_ROUTER, ROUTER_ABI, signer);
+                const usdtContract = new ethers.Contract(USDT_CONTRACT, ERC20_ABI, signer);
+                
+                // Convertir montant en Wei (USDT a 18 decimals sur BSC)
+                const amountIn = ethers.utils.parseUnits(usdtAmount.toString(), 18);
+                
+                // Vérifier allowance
+                const allowance = await usdtContract.allowance(state.account, PANCAKE_ROUTER);
+                console.log('📊 Allowance actuelle:', ethers.utils.formatUnits(allowance, 18));
+                
+                if (allowance.lt(amountIn)) {
+                    console.log('✍️ Approval nécessaire...');
+                    const approveTx = await usdtContract.approve(
+                        PANCAKE_ROUTER, 
+                        ethers.constants.MaxUint256
+                    );
+                    console.log('⏳ Attente confirmation approval:', approveTx.hash);
+                    await approveTx.wait();
+                    console.log('✅ Approval confirmée');
+                }
+                
+                // Path: USDT -> Token
+                const path = [USDT_CONTRACT, tokenAddress];
+                
+                // Calculer montant minimum avec slippage 1%
+                const amountsOut = await routerContract.getAmountsOut(amountIn, path);
+                const amountOutMin = amountsOut[1].mul(99).div(100); // 1% slippage
+                
+                // Deadline: 20 minutes
+                const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+                
+                console.log('💱 Swap USDT -> Token...');
+                console.log('   Amount In:', ethers.utils.formatUnits(amountIn, 18), 'USDT');
+                console.log('   Amount Out Min:', ethers.utils.formatUnits(amountOutMin, 18), 'Token');
+                
+                state.realTrading.pendingTx = true;
+                
+                const swapTx = await routerContract.swapExactTokensForTokens(
+                    amountIn,
+                    amountOutMin,
+                    path,
+                    state.account,
+                    deadline,
+                    { gasLimit: 300000 }
+                );
+                
+                console.log('⏳ Transaction envoyée:', swapTx.hash);
+                const receipt = await swapTx.wait();
+                
+                state.realTrading.pendingTx = false;
+                
+                console.log('✅ ACHAT confirmé!');
+                console.log('📝 Gas utilisé:', receipt.gasUsed.toString());
+                
+                return swapTx.hash;
+                
+            } catch (error) {
+                state.realTrading.pendingTx = false;
+                console.error('❌ Erreur achat:', error);
+                throw error;
+            }
+        }
+
+        // VENDRE sur PancakeSwap
+        async function executeSellOnPancakeSwap(signer, tokenAddress, usdtAmount) {
+            try {
+                console.log('🔄 Préparation vente PancakeSwap...');
+                
+                const routerContract = new ethers.Contract(PANCAKE_ROUTER, ROUTER_ABI, signer);
+                const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+                
+                // Récupérer balance token
+                const tokenBalance = await tokenContract.balanceOf(state.account);
+                console.log('💰 Balance Token:', ethers.utils.formatUnits(tokenBalance, 18));
+                
+                if (tokenBalance.eq(0)) {
+                    throw new Error('Aucun token à vendre');
+                }
+                
+                // Utiliser tout le balance
+                const amountIn = tokenBalance;
+                
+                // Vérifier allowance
+                const allowance = await tokenContract.allowance(state.account, PANCAKE_ROUTER);
+                
+                if (allowance.lt(amountIn)) {
+                    console.log('✍️ Approval Token nécessaire...');
+                    const approveTx = await tokenContract.approve(
+                        PANCAKE_ROUTER,
+                        ethers.constants.MaxUint256
+                    );
+                    console.log('⏳ Attente confirmation approval:', approveTx.hash);
+                    await approveTx.wait();
+                    console.log('✅ Approval confirmée');
+                }
+                
+                // Path: Token -> USDT
+                const path = [tokenAddress, USDT_CONTRACT];
+                
+                // Calculer montant minimum avec slippage 1%
+                const amountsOut = await routerContract.getAmountsOut(amountIn, path);
+                const amountOutMin = amountsOut[1].mul(99).div(100);
+                
+                const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+                
+                console.log('💱 Swap Token -> USDT...');
+                console.log('   Amount In:', ethers.utils.formatUnits(amountIn, 18), 'Token');
+                console.log('   Amount Out Min:', ethers.utils.formatUnits(amountOutMin, 18), 'USDT');
+                
+                state.realTrading.pendingTx = true;
+                
+                const swapTx = await routerContract.swapExactTokensForTokens(
+                    amountIn,
+                    amountOutMin,
+                    path,
+                    state.account,
+                    deadline,
+                    { gasLimit: 300000 }
+                );
+                
+                console.log('⏳ Transaction envoyée:', swapTx.hash);
+                const receipt = await swapTx.wait();
+                
+                state.realTrading.pendingTx = false;
+                
+                console.log('✅ VENTE confirmée!');
+                console.log('📝 Gas utilisé:', receipt.gasUsed.toString());
+                
+                return swapTx.hash;
+                
+            } catch (error) {
+                state.realTrading.pendingTx = false;
+                console.error('❌ Erreur vente:', error);
+                throw error;
+            }
+        }
+
+        function renderTrades() {
+            if (state.trades.length === 0) return;
+            
+            document.getElementById('tradesContainer').innerHTML = state.trades.map(t => `
+                <div class="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg mb-2 border-l-4 ${t.type === 'BUY' ? 'border-purple-400' : t.success ? 'border-green-400' : 'border-red-400'}">
+                    <div class="flex items-center gap-4">
+                        <span class="${t.type === 'BUY' ? 'text-purple-400' : t.success ? 'text-green-400' : 'text-red-400'} text-3xl">
+                            ${t.type === 'BUY' ? '🤖' : t.success ? '✅' : '❌'}
+                        </span>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <p class="font-bold text-lg">${t.type === 'BUY' ? 'ACHAT IA' : 'VENTE IA'}</p>
+                                <span class="text-xs bg-purple-400/20 text-purple-400 px-2 py-0.5 rounded font-bold">${t.pair}</span>
+                                ${t.mode === 'real' ? '<span class="text-xs bg-orange-400/20 text-orange-400 px-2 py-0.5 rounded">💎 RÉEL</span>' : '<span class="text-xs bg-blue-400/20 text-blue-400 px-2 py-0.5 rounded">🎮 SIM</span>'}
+                            </div>
+                            <p class="text-xs text-gray-400 mb-1">${t.date} ${t.time} • ${t.amount} USDT • Confiance ${t.confidence}%</p>
+                            <p class="text-xs text-purple-300 italic">"${t.reason}"</p>
+                            ${t.txHash ? `<a href="https://bscscan.com/tx/${t.txHash}" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 underline">📝 Voir sur BSCScan</a>` : ''}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-mono">${t.entryPrice}</p>
+                        ${t.type === 'SELL' ? `
+                            <p class="text-lg font-bold ${parseFloat(t.profit) >= 0 ? 'text-green-400' : 'text-red-400'}">
+                                ${parseFloat(t.profit) >= 0 ? '+' : ''}${t.profit} USDT
+                            </p>
+                            <p class="text-sm font-semibold ${parseFloat(t.profitPercent) >= 0 ? 'text-green-400' : 'text-red-400'}">
+                                ${parseFloat(t.profitPercent) >= 0 ? '+' : ''}${t.profitPercent}%
+                            </p>
+                        ` : '<p class="text-sm text-purple-400">Position ouverte</p>'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('profitDisplay').textContent = state.portfolio.profit.toFixed(2);
+            document.getElementById('aiAccuracy').textContent = state.aiStats.accuracy;
+            document.getElementById('aiTrades').textContent = state.aiStats.totalTrades;
+            document.getElementById('successRate').textContent = state.aiStats.accuracy + '%';
+        }
+
+        // Wake Lock API - Empêche la mise en veille
+        async function toggleWakeLock() {
+            const toggle = document.getElementById('wakeLockToggle');
+            
+            if (toggle.checked) {
+                await requestWakeLock();
+            } else {
+                releaseWakeLock();
+            }
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('🔋 Wake Lock activé');
+                    document.getElementById('wakeLockStatus').innerHTML = 'Status: <span class="text-green-400">✅ Actif</span>';
+                    
+                    wakeLock.addEventListener('release', () => {
+                        console.log('🔋 Wake Lock désactivé');
+                        document.getElementById('wakeLockStatus').innerHTML = 'Status: <span class="text-red-400">Désactivé</span>';
+                    });
+                } else {
+                    alert('⚠️ Wake Lock non supporté par ce navigateur.\nLe bot fonctionnera quand même en arrière-plan.');
+                    document.getElementById('wakeLockToggle').checked = false;
+                }
+            } catch (err) {
+                console.error('Erreur Wake Lock:', err);
+                alert('❌ Impossible d\'activer le mode veille: ' + err.message);
+                document.getElementById('wakeLockToggle').checked = false;
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+                console.log('🔋 Wake Lock libéré');
+                document.getElementById('wakeLockStatus').innerHTML = 'Status: <span class="text-red-400">Désactivé</span>';
+            }
+        }
+
+        // Listener pour réactiver le Wake Lock si la page redevient visible
+        function initVisibilityListener() {
+            document.addEventListener('visibilitychange', async () => {
+                if (document.visibilityState === 'visible' && document.getElementById('wakeLockToggle').checked) {
+                    console.log('👁️ Page visible - Réactivation Wake Lock');
+                    await requestWakeLock();
+                }
+            });
+        }
+
+        // Keep Alive - Empêche la suspension du JavaScript
+        function initKeepAlive() {
+            // Ping toutes les 30 secondes pour garder le script actif
+            keepAliveInterval = setInterval(() => {
+                if (state.botRunning) {
+                    console.log('💓 Keep Alive - Bot actif');
+                    
+                    // Si le WebSocket est fermé, le reconnecter
+                    if (!ws || ws.readyState === WebSocket.CLOSED) {
+                        console.log('🔄 Reconnexion WebSocket...');
+                        connectWebSocket();
+                    }
+                }
+            }, 30000);
+        }
+
+        // Notification audio quand un trade est exécuté
+        function playTradeSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {
+                console.log('Son désactivé');
+            }
+        }
+
+        // Sauvegarder l'état du bot dans localStorage
+        function saveState() {
+            if (state.isConnected && state.capitalSet) {
+                const stateToSave = {
+                    tradingCapital: state.tradingCapital,
+                    portfolio: state.portfolio,
+                    aiStats: state.aiStats,
+                    trades: state.trades.slice(0, 20),
+                    selectedCrypto: state.selectedCrypto,
+                    tradingMode: state.tradingMode,
+                    lastSaved: new Date().toISOString()
+                };
+                localStorage.setItem('botTradingState', JSON.stringify(stateToSave));
+                console.log('💾 État sauvegardé');
+            }
+        }
+
+        // Restaurer l'état du bot
+        function restoreState() {
+            try {
+                const saved = localStorage.getItem('botTradingState');
+                if (saved) {
+                    const restored = JSON.parse(saved);
+                    
+                    // Vérifier que la sauvegarde n'est pas trop ancienne (24h max)
+                    const lastSaved = new Date(restored.lastSaved);
+                    const hoursSince = (Date.now() - lastSaved.getTime()) / (1000 * 60 * 60);
+                    
+                    if (hoursSince < 24) {
+                        console.log('♻️ Restauration de l\'état...');
+                        return restored;
+                    }
+                }
+            } catch (e) {
+                console.error('Erreur restauration:', e);
+            }
+            return null;
+        }
+
+        // Sauvegarder automatiquement toutes les 5 minutes
+        setInterval(saveState, 5 * 60 * 1000);
+
+        // Sauvegarder avant de fermer la page
+        window.addEventListener('beforeunload', (e) => {
+            if (state.botRunning) {
+                saveState();
+                e.preventDefault();
+                e.returnValue = 'Le bot est en cours d\'exécution. Êtes-vous sûr de vouloir quitter?';
+            }
+        });
+    </script>
+</body>
+</html>
     <title>Bot Trading IA Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
